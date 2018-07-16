@@ -1,0 +1,95 @@
+<!doctype html>
+<head>
+<link href='main.css' rel='stylesheet' type='text/css'>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src='http://localhost:8081/socket.io/socket.io.js'></script>
+<script>
+
+$(function() {
+	
+	var passwordPassed; var usernamePassed;
+	var regExp = {
+		username : /[A-Za-z0-9_-]/,
+		usernameSpaces : /[ ]/,
+		password : /[A-Za-z0-9_-]/
+	}
+	
+	var socket = io.connect('http://127.0.0.1:8081');
+	
+	// listens for when client connects to server
+	socket.on('connect', function(data) {
+		
+	});
+	// listens for data the server sends with
+	// an id of 'messages'
+	socket.on('messages', function(data) {
+		console.log(data); // log the message
+	});
+	
+	// onsubmit, emit the details from form to server
+	$('form').submit(function(e) {
+		e.preventDefault();
+		var date = new Date();
+		var user = {
+			username : $("input[name='username']").val(),
+			password : $("input[name='password']").val(),
+			date : date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate(),
+			clicks : 0
+		}
+		console.log(user);
+		
+		let usercheck = user.username.match(regExp.username);
+		let usercheckSpaces = user.username.match(regExp.usernameSpaces);
+		let passwordRegexCheck = user.password.match(regExp.password);
+		
+		// Check the username
+		if ((!usercheck) || (!user.username)) {
+			console.log('no username given');
+		} else if ((usercheck.length > 0) && (usercheckSpaces == null) && (user.username.length > 2) && (user.username.length < 17)) {
+			console.log('username passed check');
+			usernamePassed = true;
+		} else {
+			console.log('username failed check');
+		}
+		
+		// Check the password
+		if (passwordRegexCheck == 0) {
+			console.log('no password given');
+		} else if ((passwordRegexCheck) && (user.password.length > 5) && (user.password.length < 33)) {
+			console.log('password passed check');
+			passwordPassed = true;
+		} else {
+			console.log('password failed check');
+		}
+		
+		// Finally check if both have passed and send details to server
+		if((usernamePassed==true) && (passwordPassed==true)) {
+			// reset these variables
+			usernamePassed = false;
+			passwordPassed = false;
+			// send registration details to server
+			socket.emit('registration-details', user);
+			console.log('Details sent to database');
+		} else {
+			console.log('final check failed. nothing was sent.');
+		}
+		
+	});
+	
+	
+});
+
+</script>
+</head>
+<body>
+	<div class='container'>
+		<h1>Registration</h1>
+		<p>Checks if the user exists & if their password<br>meets the requirements before adding to a database.</p>
+		<form>
+			<label>Username</label><input type='text' name='username'></input>
+			<label>Password</label><input type='text' name='password'></input>
+			<input type='submit'></input>
+		</form>
+		<p>Got an account? <a href='login'>Log in.</a></p>
+	</div>
+</body>

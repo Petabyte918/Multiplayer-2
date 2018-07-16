@@ -1,0 +1,51 @@
+<!doctype html>
+<head>
+<link href='main.css' rel='stylesheet' type='text/css'>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src='http://localhost:8081/socket.io/socket.io.js'></script>
+<script>
+
+$(function() {
+	var socket = io.connect('http://127.0.0.1:8081');
+	
+	// listens for when client connects to server
+	socket.on('connect', function(data) {
+		
+	});
+	// listens for data the server sends with
+	// an id of 'messages'
+	socket.on('messages', function(data) {
+		console.log(data); // log the message
+	});
+	
+	socket.on('login', function() {
+		window.location.href = '/game';
+	});
+	
+	// onsubmit, emit the details from form to server
+	$('form').submit(function(e) {
+		e.preventDefault();
+		var user = {
+			username : $("input[name='username']").val(),
+			password : $("input[name='password']").val()
+		}
+		socket.emit('login-details', user);
+	});
+	
+	
+});
+
+</script>
+</head>
+<body>
+	<div class='container'>
+		<h1 style='width:100%; text-align:center; margin-bottom:16px;'>Login</h1>
+		<p style='text-align:center; margin-bottom:16px;'>You have to log in.</p>
+		<form>
+			<label>Username</label><input type='text' name='username'value='Abilitiy'></input>
+			<label>Password</label><input type='text' name='password' value='mypassword'></input>
+			<input type='submit'></input>
+		</form>
+		<p>Don't have an account? <a href='registration'>Register.</a></p>
+	</div>
+</body>
