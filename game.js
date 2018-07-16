@@ -1,10 +1,5 @@
-
-
-
 window.onload = function() {
 
-	
-	
 	/* 
 	|  SOCKETS STUFF
 	*/
@@ -32,36 +27,37 @@ window.onload = function() {
 		socket.emit('positionData', player);
 		socket.emit('newPlayerConnected', player);
 	});
-	var otherPlayers = [];
-	var playersRendered = [];
+	
+	
 	/*
-	|  Other players
+	|  Recieving data from server
 	*/
-
+	
 	socket.on('otherPlayersData', function(data) {
-		console.log('other players pos received');
-		console.log(data);
-		if (!players[data.playerID]) {
-			let a = new component(data.size, data.size, data.color, data.x, data.y);
-			playersRendered.push(a);
-			console.log(playersRendered);
-		} else {
-			playersRendered[0].x = data.x;
-			playersRendered[0].y = data.y;
-		}
-		players.push(data);
-		console.log('players array:');
-		console.log(players);
-		playersRendered.push(data);
-		console.log('players to render:');
 		
-		// clear other players?
-		// update new players
+		// find the index (if exists) of the ID of the recieved data from local players array
+		var existingPlayerIndex = players.map(function(e) { return e.playerID }).indexOf(data.playerID);
+		
+		// if the ID of the recieved data doesn't match one from players array
+		if (existingPlayerIndex < 0) {
+			// create a new component
+			let a = new component(data.size, data.size, data.color, data.x, data.y);
+			// push the new player to players and add to rendering array
+			playersRendered.push(a);
+			players.push(data);
+		} else {
+			// update existing player's location
+			players[existingPlayerIndex].x = data.x;
+			players[existingPlayerIndex].y = data.y;
+			// update player's location on rendering array
+			playersRendered[existingPlayerIndex].x = data.x;
+			playersRendered[existingPlayerIndex].y = data.y;
+		}
 	});
 	
+	// when a new player connects
 	socket.on('otherPlayerConnected', function(data) {
 		console.log('new player connected');
-		console.log(data);
 	});
 	
 	
@@ -69,33 +65,64 @@ window.onload = function() {
 	|  GAME STUFF
 	*/
 	
-	var playerPos;
-	// var everyFive = 0; <- a limiter in case this causes too many update
-	var player = {};
-	var players = [];
-
 	var canvas = document.querySelector('canvas');
 	var ctx = canvas.getContext('2d');
-
+	
+	var playerPos;
+	
+	// client player information
+	var player = {};
+	// all the player objects recieved from server
+	var players = [];
+	// essentially a copy of players, but with components instead of plain objects
+	var playersRendered = [];
+	
 	var keydown;
 	var pressed = { left: false, right: false, top: false, bottom: false }
-
-	//var obstacles = [];
+	
+	// obstacles to be rendered on page
 	var obstacles = [
-			new component(32, 512, 'green', 0, 0),
-			new component(512, 32, 'green', 0, 0),
-			new component(512, 32, 'green', 0, 448),
-			new component(32, 512, 'green', 480, 0),
-		];
+		new component(32, 512, 'green', 0, 0),
+		new component(512, 32, 'green', 0, 0),
+		new component(512, 32, 'green', 0, 448),
+		new component(32, 512, 'green', 480, 0),
+	];
+	
+	// initialise player - this info goes to gamepiece component
 	var player = {
 		size: 16,
 		color: getRandomColor(),
-		posX: 240,
-		posY: 256
+		x: getRandomInt(2, 30) * 16,
+		y: getRandomInt(2, 28) * 16
 	}
 	
+	// game event triggers
+	var triggers = {
+		keypress: false,
+		example : false // find if pos is 32
+	};
+	
+	// get random color for player color
+	function getRandomColor() {
+		var letters = '0123456789ABCDEF';
+		var color = '#';
+		for (var i = 0; i < 6; i++) {
+			color += letters[Math.floor(Math.random() * 16)];
+		}
+		return color;
+	}
+	
+	// get random location for player
+	function getRandomInt(min, max) {
+		min = Math.ceil(min);
+		max = Math.floor(max);
+		return Math.floor(Math.random() * (max - min)) + min; //The maximum is exclusive and the minimum is inclusive
+	}
 	
 	/*
+	
+	Blueprint for getting collision to work
+	
 	var Map = {
 		
 		
@@ -156,8 +183,13 @@ window.onload = function() {
 	}
 	*/
 	
+	//  ---------
+	//	RENDERING
+	//  ---------
+	
 	var gameArea = {
 		canvas: canvas,
+		
 		start: function() {
 			this.canvas.width = 512,
 			this.canvas.height = 480,
@@ -165,6 +197,7 @@ window.onload = function() {
 			this.frameNo = 0;
 			this.interval = setInterval(update, 10);
 		},
+		
 		clear: function() {
 			this.ctx.clearRect(0,0, this.canvas.width, this.canvas.height);
 		},
@@ -173,39 +206,25 @@ window.onload = function() {
 			gamePiece.newPos();
 			gamePiece.update();
 			
-			// old collision code
-			//for (i=0; i < obstacles.length; i++) {
-				//gamePiece.collideWith(obstacles[i]);
-			//}
-			
+			// render each component from obstacles[]
 			for (i=0; i < obstacles.length; i++) {
 				obstacles[i].update();
 			}
+			// render each component from playersRendered[]
+			for (i = 0; i < playersRendered.length; i++) {
+				playersRendered[i].update();
+			}
 			
+			/*
+			|	Game events
+			*/
 			
-			playersRendered[0].update();
-			//console.log(otherPlayers.length);
-			/*
-			for (let a=0; a < playersRendered.length; a++) {
-				//console.log(playersRendered[a]);
-				
-			}*/
-			/*
-			if ( (gamePiece.y <= obstacle8.y) && (gamePiece.x > gameArea.canvas.width - 100) ) {
-				alert('Winner winner, chicken dinner');
-				location.reload();
-			}*/
+			// check if player has moved to a certain square
+			if ((gamePiece.x == 32) && (triggers.example == false)) {
+				triggers.example = true;
+				console.log('x = 0 - it worked');
+			}
 		}
-	}
-	
-	// get random color for player color
-	function getRandomColor() {
-		var letters = '0123456789ABCDEF';
-		var color = '#';
-		for (var i = 0; i < 6; i++) {
-			color += letters[Math.floor(Math.random() * 16)];
-		}
-		return color;
 	}
 	
 	function component(width, height, color, x, y) {
@@ -219,90 +238,28 @@ window.onload = function() {
 		}
 		
 		// updates position of player, called when a keypress is received
-		
 		this.newPos = function() {
 			var oldX = this.x;
 			var oldY = this.y;
 			this.x += moveLengthX;
 			this.y += moveLengthY;
-			if(Map.isPositionWall(this)) {
-				this.x = oldX;
-				this.y = oldY;
-			}
 		}
-		
-		//Map.isPositionWall(this);
-		/*
-		this.isPositionWall = function(pt) {
-			var gridX = Math.floor(pt.x / TILE_SIZE);
-			var gridY = Math.floor(pt.y / TILE_SIZE);
-			if (gridX < 0 || gridX >= self.grid[0].length)
-				return true;
-			if (gridX < 0 || gridX >= self.grid[0].length)
-				return true;
-			return self.grid[griY][gridX];
-		} */
-		
-		/*
-		this.hitBottom = function () {
-			var rockbottom = gameArea.canvas.height - this.height;
-			if (this.y > rockbottom)
-				{ this.y = rockbottom + 1; bottomCheck = true;
-			} else if (this.y < (rockbottom + 1)) {
-				bottomCheck = false;
-			}
-		}
-		
-		this.collideWith = function(obstruction) {
-			var myLeft = this.x; var myTop = this.y;
-			var myRight = this.x + this.width;
-			var myBot = this.y + this.height;
-			var theirLeft = obstruction.x; var theirTop = obstruction.y;
-			var theirRight = obstruction.x + obstruction.width;
-			var theirBot = obstruction.y + obstruction.height;
-			var collide = true;
-			if ((myBot <= theirTop) || (myTop >= theirBot) || (myRight <= theirLeft) || (myLeft >= theirRight)) {
-				collide = false;
-			}
-			// ground collision
-			var objGround = obstruction.y - this.height;
-			if ((myBot >= theirTop) && (myRight > theirLeft) && (myLeft < theirRight) && (myTop < theirBot) && (this.gravitySpeed > 0) ) {
-				this.y = objGround - 0; bottomCheck = true;
-			} else if (this.y < (objGround + 1)) {
-				bottomCheck = false; 
-			} else if ((myTop <= theirBot) || (myBot > theirTop)) {
-				this.y = this.y;
-			}
-			return collide;
-		} */
 	}
-
 	
-
+	// create the objects which are local-only on the screen
 	function startGame() {
 		gameArea.start();
 		
-		gamePiece = new component(player.size, player.size, player.color, player.posX, player.posY);
+		gamePiece = new component(player.size, player.size, player.color, player.x, player.y);
 		obstacle = new component(gameArea.canvas.width, 50, 'rgba(0,0,255,0.6)', 0, (gameArea.canvas.height - 50));
-		
-		/*
-		obstacle2 = new component(16, 16, 'green', 200, obstacle.y - 20);
-		obstacle3 = new component(50, 20, 'green', 100, obstacle.y - 50);
-		obstacle4 = new component(50, 20, 'green', 300, obstacle.y - 80);
-		obstacle5 = new component(50, 20, 'green', 350, obstacle.y - 150);
-		obstacle6 = new component(50, 20, 'green', 155, obstacle.y - 200);
-		obstacle7 = new component(50, 20, 'green', 50, obstacle.y - 230);
-		obstacle8 = new component(gameArea.canvas.width - 100, 20, 'blue', 100, obstacle.y - 300);
-		*/
 	}
+	
+	/*
+	|	Keypress Handling
+	*/
 
-
-	var triggered;
-
-
-	var keyDownHandler = function(e) {	
-		//console.log(gamePiece.x);
-		
+	// when a key is pressed
+	var keyDownHandler = function(e) {
 		if (e.keyCode == 65)      { pressed.right = true; }
 		else if (e.keyCode == 68) { pressed.left  = true; }
 		else if (e.keyCode == 87) { pressed.up    = true; }
@@ -310,13 +267,14 @@ window.onload = function() {
 	}
 
 	var keyUpHandler = function(e) {
+		// update player object to be sent
 		player.x = gamePiece.x;
 		player.y = gamePiece.y;
+		
+		// send the player object
 		socket.emit('positionData', player);
-		//console.log('----------------');
-		//console.log('X: ' + gamePiece.x);
-		//console.log('Y: ' + gamePiece.y);
-		triggered=false;
+		
+		triggers.keypress = false;
 		if (e.keyCode == 65) 	  { pressed.right = false; }
 		else if (e.keyCode == 68) { pressed.left  = false; }
 		else if (e.keyCode == 87) { pressed.up    = false; }
@@ -327,58 +285,38 @@ window.onload = function() {
 	document.addEventListener('keydown', keyDownHandler, false);
 	document.addEventListener('keyup', keyUpHandler, false);
 
+	// runs every frame
 	function update() {
-				
 		
-		if ((pressed.left) && (!triggered)) {
+		// check if keys are being pressed
+		if ((pressed.left) && (!triggers.keypress)) {
 			moveLengthX = 16;
-			triggered=true;
 			gamePiece.newPos();
+			triggers.keypress = true;
 			
 		} else {moveLengthX = 0;moveLengthY = 0;}
-		if ((pressed.right) && (!triggered)) {
+		if ((pressed.right) && (!triggers.keypress)) {
 			moveLengthX = -16;
 			gamePiece.newPos();
-			triggered=true;
+			triggers.keypress = true;
 			
 		} else {moveLengthX = 0;moveLengthY = 0;}
-		if ((pressed.up) && (!triggered)) {
+		if ((pressed.up) && (!triggers.keypress)) {
 			moveLengthY = -16;
 			gamePiece.newPos();
-			triggered=true;
+			triggers.keypress = true;
 			
 		} else {moveLengthX = 0;moveLengthY = 0;}
-		if ((pressed.down) && (!triggered)) {
+		if ((pressed.down) && (!triggers.keypress)) {
 			moveLengthY = 8;
 			gamePiece.newPos();
-			triggered=true;
+			triggers.keypress = true;
 			
 		} else {moveLengthX = 0;moveLengthY = 0;}
 		
-		//if (bottomCheck) { gamePiece.gravity = 0; jumpMax = gamePiece.y - 50;  }
-		
-		/*
-		document.addEventListener('keydown', function(e) {
-			if (e.keyCode == '65') {
-				gamePiece.speedX = -player.speed;
-			} else if (e.keyCode == '68') {
-				gamePiece.speedX = player.speed;
-			} else if (e.keyCode == '87') {
-				gamePiece.speedY = -player.speed;
-			} else if ((e.keyCode == '83') && (!gamePiece.collideWith(obstacle))) {
-				gamePiece.speedY = player.speed;
-			}
-			
-		});	
-			
-		document.addEventListener('keyup', function () {
-			gamePiece.speedX = 0;
-			gamePiece.speedY = 0;
-		})*/
-		
+		// clear then re-render the game area
 		gameArea.clear();
 		gameArea.screen1();
-		
 	}
 
 	startGame();
